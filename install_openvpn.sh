@@ -343,13 +343,15 @@ if [[ "$OS" = 'debian' ]]; then
     # Install runtime dependencies.  The OpenVPN daemon will be extracted from
     # the package file selected earlier, so we do not install it from the
     # package manager.  freeradius-utils provides the radclient binary used
-    # by our authentication script.
-    apt-get install -y easy-rsa iptables-persistent wget lsb-release freeradius-utils
+    # by our authentication script.  liblzo2-2 provides the LZO compression
+    # library required by the pre-compiled OpenVPN binary.
+    apt-get install -y easy-rsa iptables-persistent wget lsb-release freeradius-utils liblzo2-2
 else # CentOS
     yum install -y epel-release
     # Install runtime dependencies.  Skip OpenVPN, go, git and sqlite
     # because the daemon will be provided by the downloaded or local package.
-    yum install -y easy-rsa iptables-services wget freeradius-utils
+    # The lzo package provides the LZO compression library.
+    yum install -y easy-rsa iptables-services wget freeradius-utils lzo
 fi
 
 echo "Dependencies installed."
