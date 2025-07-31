@@ -222,10 +222,6 @@ echo
 sleep 2
 
 # --- Choose installation package source ---
-# Determine whether to use a locally built OpenVPN archive or download
-# the latest version from GitHub.  If a local package exists at
-# LOCAL_PACKAGE_PATH, prompt the user for a choice.  Otherwise,
-# download from GitHub by default.
 PACKAGE_PATH=""
 if [[ -f "$LOCAL_PACKAGE_PATH" ]]; then
     echo
@@ -235,7 +231,7 @@ if [[ -f "$LOCAL_PACKAGE_PATH" ]]; then
     echo "     1) Download the latest version from GitHub"
     echo "     2) Use the local package ($LOCAL_PACKAGE_PATH)"
     while true; do
-        read -p "  Your choice [1-2]: " PACKAGE_CHOICE
+        read -p "  Your choice [1-2]: " PACKAGE_CHOICE < /dev/tty
         case "$PACKAGE_CHOICE" in
             1)
                 PACKAGE_PATH=$(download_package) || PACKAGE_PATH=""
@@ -274,7 +270,7 @@ CLIENT="$7"
 
 IP=$(ip -4 addr | grep 'inet' | grep -v '127.0.0.1' | cut -d' ' -f6 | cut -d'/' -f1 | head -n1)
 if [[ -z "$PUBLICIP" ]]; then
-    read -p "Public IP address: " -e -i "$IP" PUBLICIP
+    read -p "Public IP address: " -e -i "$IP" PUBLICIP < /dev/tty
 fi
 
 echo
@@ -282,7 +278,7 @@ if [[ -z "$PROTOCOL_CHOICE" ]]; then
     echo "Select the protocol for OpenVPN:"
     echo "   1) UDP (recommended)"
     echo "   2) TCP"
-    read -p "Protocol [1-2]: " -e -i 1 PROTOCOL_CHOICE
+    read -p "Protocol [1-2]: " -e -i 1 PROTOCOL_CHOICE < /dev/tty
 fi
 case $PROTOCOL_CHOICE in
     1) PROTOCOL=udp ;;
@@ -292,7 +288,7 @@ esac
 
 echo
 if [[ -z "$PORT" ]]; then
-    read -p "OpenVPN Port: " -e -i 1194 PORT
+    read -p "OpenVPN Port: " -e -i 1194 PORT < /dev/tty
 fi
 
 # باز کردن پورت‌ها در UFW (در صورت فعال بودن)
@@ -305,11 +301,11 @@ if command -v ufw >/dev/null 2>&1 && ufw status | grep -q 'Status: active'; then
 fi
 echo
 if [[ -z "$RADIUSIP" ]]; then
-    read -p "Radius Server IP: " -e -i "127.0.0.1" RADIUSIP
+    read -p "Radius Server IP: " -e -i "127.0.0.1" RADIUSIP < /dev/tty
 fi
 echo
 if [[ -z "$RADIUSPASS" ]]; then
-    read -p "Radius Shared Secret: " -e -i "radius_secret" RADIUSPASS
+    read -p "Radius Shared Secret: " -e -i "radius_secret" RADIUSPASS < /dev/tty
 fi
 echo
 echo "Select the DNS to use for clients:"
@@ -318,11 +314,11 @@ echo "   2) Cloudflare"
 echo "   3) Google"
 echo "   4) OpenDNS"
 if [[ -z "$DNS" ]]; then
-    read -p "DNS [1-4]: " -e -i 3 DNS
+    read -p "DNS [1-4]: " -e -i 3 DNS < /dev/tty
 fi
 echo
 if [[ -z "$CLIENT" ]]; then
-    read -p "Client config file name (one word, e.g., client): " -e -i client CLIENT
+    read -p "Client config file name (one word, e.g., client): " -e -i client CLIENT < /dev/tty
 fi
 echo
 echo "-------------------------------------------"
