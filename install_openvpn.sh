@@ -108,9 +108,22 @@ if command -v openvpn >/dev/null || [[ -d /etc/openvpn ]] || systemctl list-unit
         systemctl stop openvpn-server@server.service || true
         systemctl disable openvpn-server@server.service || true
     fi
-
-    # کشتن پردازه‌های باقی‌مانده
-    killall -q -9 openvpn || true
+    
+    # پایان دادن به پردازه‌های OpenVPN بدون وابستگی به killall
+    if command -v killall >/dev/null; then
+        killall -q -9 openvpn || true
+    else
+        # اگر killall در دسترس نیست، از pkill یا kill استفاده کنید
+        if command -v pkill >/dev/null; then
+            pkill -9 openvpn || true
+        else
+            # آخرین راه‌حل: استفاده از kill و pgrep
+            for pid in $(pgrep -x openvpn); do
+                kill -9 "$pid" || true
+            done
+        fi
+    fi
+    
     timeout=20
     while pgrep -x openvpn >/dev/null && [ "$timeout" -gt 0 ]; do
         sleep 0.5
