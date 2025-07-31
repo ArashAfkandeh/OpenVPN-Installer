@@ -169,7 +169,7 @@ GITHUB_REPO="ArashAfkandeh/OpenVPN-Installer"
 # downloaded file via stdout.  If download fails, the function
 # outputs an error and exits.
 download_package() {
-    print_header "Finding the latest release..."
+    print_header "Finding the latest release..." >&2
     # Ensure curl is available.  Install it silently if missing.
     if ! command -v curl &>/dev/null; then
         if [[ "$OS" = 'debian' ]]; then
@@ -186,13 +186,14 @@ download_package() {
         exit 1
     fi
     PACKAGE_NAME=$(basename "$LATEST_RELEASE_URL")
-    print_header "Downloading latest release: $PACKAGE_NAME"
+    print_header "Downloading latest release: $PACKAGE_NAME" >&2
     TMP_DIR=$(mktemp -d)
     if ! curl -sSL "$LATEST_RELEASE_URL" -o "${TMP_DIR}/${PACKAGE_NAME}"; then
         print_error "Failed to download package from GitHub"
         rm -rf "$TMP_DIR"
         exit 1
     fi
+    # Only echo the path on stdout
     echo "${TMP_DIR}/${PACKAGE_NAME}"
 }
 
