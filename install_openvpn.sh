@@ -90,10 +90,12 @@ else
     exit 1
 fi
 
-# --- Check existing OpenVPN installation ---
+# --- Check existing OpenVPN installation and prompt for removal ---
+# اگر سرویس openvpn یا پوشه‌های آن وجود داشته باشد، از کاربر سؤال کن
 if command -v openvpn >/dev/null || [[ -d /etc/openvpn ]] || systemctl list-unit-files | grep -q '^openvpn-server@server\.service'; then
     echo "An existing OpenVPN installation was detected."
-    read -p "  Do you want to remove it and continue with a fresh installation? [y/N]: " -n 1 -r REPLY
+    # خواندن پاسخ از ترمینال، حتی در صورت اجرای اسکریپت از طریق pipe
+    read -p "  Do you want to remove it and continue with a fresh installation? [y/N]: " -n 1 -r REPLY < /dev/tty
     echo
     if [[ ! "$REPLY" =~ ^[Yy]$ ]]; then
         echo "Installation aborted by the user." >&2
@@ -101,13 +103,14 @@ if command -v openvpn >/dev/null || [[ -d /etc/openvpn ]] || systemctl list-unit
     fi
     echo "Proceeding with removal of the existing version..."
 
-    # Stop existing services
+    # توقف سرویس و غیر فعال کردن آن
     if systemctl list-unit-files | grep -q '^openvpn-server@server\.service'; then
         systemctl stop openvpn-server@server.service || true
         systemctl disable openvpn-server@server.service || true
     fi
+
+    # کشتن پردازه‌های باقی‌مانده
     killall -q -9 openvpn || true
-    # Wait for all processes to stop.
     timeout=20
     while pgrep -x openvpn >/dev/null && [ "$timeout" -gt 0 ]; do
         sleep 0.5
@@ -118,7 +121,7 @@ if command -v openvpn >/dev/null || [[ -d /etc/openvpn ]] || systemctl list-unit
         exit 1
     fi
 
-    # Remove old packages and configuration files
+    # حذف بسته‌ها و فایل‌های پیکربندی
     apt-get remove --purge -y openvpn openvpn-auth-radius easy-rsa iptables-persistent >/dev/null 2>&1 || true
     rm -rf /etc/openvpn /var/log/openvpn /usr/local/sbin/openvpn*
     apt-get autoremove -y >/dev/null 2>&1
