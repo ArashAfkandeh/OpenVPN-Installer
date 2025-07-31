@@ -791,7 +791,7 @@ echo "  Authentication:    Radius (Username & Password)"
 echo "======================================================="
 echo
 echo "The client configuration file is available at:"
-ECHO ""
+echo ""
 echo "  ${C_GREEN}/root/$CLIENT.ovpn${C_OFF}"
 echo
 echo "You can share this single file with all your users."
