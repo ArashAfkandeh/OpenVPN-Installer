@@ -3,7 +3,7 @@
 
 <div dir="rtl">
 
-![نمای پنل مدیریت](panel.png)
+![نمای پنل مدیریت](panel_preview.png)
 
 ## 📋 معرفی
 
