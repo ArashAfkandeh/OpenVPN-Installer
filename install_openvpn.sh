@@ -791,7 +791,8 @@ echo "  Authentication:    Radius (Username & Password)"
 echo "======================================================="
 echo
 echo "The client configuration file is available at:"
-echo "  /root/$CLIENT.ovpn"
+ECHO ""
+echo "  ${C_GREEN}/root/$CLIENT.ovpn${C_OFF}"
 echo
 echo "You can share this single file with all your users."
 echo "For best results, it is recommended to reboot the server now: reboot"
@@ -1132,5 +1133,4 @@ OVPNEOF
 # Ensure the management panel is executable
 chmod +x /usr/local/bin/ov-p
 
-echo -e "For future management, use the command:"
-echo -e "  sudo ov-p"
+echo -e "Command to management panel: ${C_GREEN}ov-p${C_OFF}"
