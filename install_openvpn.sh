@@ -90,9 +90,44 @@ else
     exit 1
 fi
 
-if [[ -e /etc/openvpn/server/server.conf ]]; then
-    echo "ERROR: OpenVPN is already installed. To reinstall, please remove the existing configuration first."
-    exit 1
+# --- Check existing OpenVPN installation ---
+if command -v openvpn >/dev/null || [[ -d /etc/openvpn ]] || systemctl list-unit-files | grep -q '^openvpn-server@server.service'; then
+    print_warning "An existing OpenVPN installation was detected."
+    read -p "  Do you want to remove it and continue with a fresh installation? [y/N]: " -n 1 -r REPLY
+    echo    # رفتن به خط بعد
+    if [[ ! "$REPLY" =~ ^[Yy]$ ]]; then
+        print_error "Installation aborted by the user."
+        exit 1
+    fi
+    print_success "Proceeding with removal of the existing version..."
+
+    # توقف سرویس‌های موجود
+    echo "  Stopping any existing OpenVPN services..."
+    if systemctl list-unit-files | grep -q '^openvpn-server@server.service'; then
+        systemctl stop openvpn-server@server.service || true
+        systemctl disable openvpn-server@server.service || true
+    fi
+    # پایان دادن به پردازه‌های در حال اجرا
+    killall -q -9 openvpn || true
+    # کمی منتظر بمانید تا پردازه‌ها متوقف شوند
+    timeout=20
+    while pgrep -x openvpn >/dev/null && [ "$timeout" -gt 0 ]; do
+        sleep 0.5
+        ((timeout--))
+    done
+    if pgrep -x openvpn >/dev/null; then
+        print_error "OpenVPN processes could not be terminated."
+        exit 1
+    fi
+    print_success "All OpenVPN processes terminated."
+
+    # حذف بسته‌ها و فایل‌های پیکربندی قدیمی
+    echo "  Removing old packages and configurations..."
+    apt-get remove --purge -y openvpn openvpn-auth-radius easy-rsa iptables-persistent >/dev/null 2>&1 || true
+    rm -rf /etc/openvpn /var/log/openvpn /usr/local/sbin/openvpn*
+    apt-get autoremove -y >/dev/null 2>&1
+    systemctl daemon-reload
+    print_success "Old packages and configurations removed."
 fi
 
 # --- Helper functions and variables for package download ---
