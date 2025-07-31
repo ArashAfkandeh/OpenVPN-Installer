@@ -4,7 +4,7 @@ set -e
 
 # --- Uninstall Option ---
 if [[ "$1" == "uninstall" ]]; then
-    echo "در حال حذف کامل OpenVPN و تنظیمات..."
+    echo "Completely removing OpenVPN and settings..."
     systemctl stop openvpn-server@server.service 2>/dev/null || true
     systemctl disable openvpn-server@server.service 2>/dev/null || true
     if [[ -d /etc/openvpn ]]; then
@@ -48,7 +48,7 @@ if [[ "$1" == "uninstall" ]]; then
     else
         yum remove -y openvpn openvpn-auth-radius easy-rsa iptables-services
     fi
-    # حذف قوانین UFW
+    # Removing UFW rules
     if command -v ufw >/dev/null 2>&1 && ufw status | grep -q 'Status: active'; then
         for p in udp tcp; do
             ufw delete allow 1194/$p 2>/dev/null || true
@@ -56,7 +56,7 @@ if [[ "$1" == "uninstall" ]]; then
             ufw delete allow 1813/$p 2>/dev/null || true
         done
     fi
-    echo "حذف کامل انجام شد."
+    echo "Complete deletion was performed."
     exit 0
 fi
 
@@ -91,10 +91,10 @@ else
 fi
 
 # --- Check existing OpenVPN installation and prompt for removal ---
-# اگر سرویس openvpn یا پوشه‌های آن وجود داشته باشد، از کاربر سؤال کن
+# Ask the user if the openvpn service or its folders exist.
 if command -v openvpn >/dev/null || [[ -d /etc/openvpn ]] || systemctl list-unit-files | grep -q '^openvpn-server@server\.service'; then
     echo "An existing OpenVPN installation was detected."
-    # خواندن پاسخ از ترمینال، حتی در صورت اجرای اسکریپت از طریق pipe
+    # Read response from terminal, even if script is executed via pipe
     read -p "  Do you want to remove it and continue with a fresh installation? [y/N]: " -n 1 -r REPLY < /dev/tty
     echo
     if [[ ! "$REPLY" =~ ^[Yy]$ ]]; then
@@ -103,21 +103,21 @@ if command -v openvpn >/dev/null || [[ -d /etc/openvpn ]] || systemctl list-unit
     fi
     echo "Proceeding with removal of the existing version..."
 
-    # توقف سرویس و غیر فعال کردن آن
+    # Stopping and disabling the service
     if systemctl list-unit-files | grep -q '^openvpn-server@server\.service'; then
         systemctl stop openvpn-server@server.service || true
         systemctl disable openvpn-server@server.service || true
     fi
     
-    # پایان دادن به پردازه‌های OpenVPN بدون وابستگی به killall
+    # Terminating OpenVPN processes without relying on killall
     if command -v killall >/dev/null; then
         killall -q -9 openvpn || true
     else
-        # اگر killall در دسترس نیست، از pkill یا kill استفاده کنید
+        # If killall is not available, use pkill or kill.
         if command -v pkill >/dev/null; then
             pkill -9 openvpn || true
         else
-            # آخرین راه‌حل: استفاده از kill و pgrep
+            # Last resort: using kill and pgrep
             for pid in $(pgrep -x openvpn); do
                 kill -9 "$pid" || true
             done
@@ -134,7 +134,7 @@ if command -v openvpn >/dev/null || [[ -d /etc/openvpn ]] || systemctl list-unit
         exit 1
     fi
 
-    # حذف بسته‌ها و فایل‌های پیکربندی
+    # Removing packages and configuration files
     apt-get remove --purge -y openvpn openvpn-auth-radius easy-rsa iptables-persistent >/dev/null 2>&1 || true
     rm -rf /etc/openvpn /var/log/openvpn /usr/local/sbin/openvpn*
     apt-get autoremove -y >/dev/null 2>&1
@@ -260,7 +260,6 @@ if [[ -z "$PACKAGE_PATH" || ! -f "$PACKAGE_PATH" ]]; then
 fi
 
 # --- Get User Input ---
-# خواندن آرگومان‌های ورودی
 PUBLICIP="$1"
 PROTOCOL_CHOICE="$2"
 PORT="$3"
@@ -273,8 +272,8 @@ IP=$(ip -4 addr | grep 'inet' | grep -v '127.0.0.1' | cut -d' ' -f6 | cut -d'/' 
 if [[ -z "$PUBLICIP" ]]; then
     read -p "Public IP address: " -e -i "$IP" PUBLICIP < /dev/tty
 fi
-
 echo
+
 if [[ -z "$PROTOCOL_CHOICE" ]]; then
     echo "Select the protocol for OpenVPN:"
     echo "   1) UDP (recommended)"
@@ -286,13 +285,13 @@ case $PROTOCOL_CHOICE in
     2) PROTOCOL=tcp ;;
     *) PROTOCOL=udp ;;
 esac
-
 echo
+
 if [[ -z "$PORT" ]]; then
     read -p "OpenVPN Port: " -e -i 1194 PORT < /dev/tty
 fi
 
-# باز کردن پورت‌ها در UFW (در صورت فعال بودن)
+# Open ports in UFW (if enabled)
 if command -v ufw >/dev/null 2>&1 && ufw status | grep -q 'Status: active'; then
     for proto in udp tcp; do
         ufw allow $PORT/$proto
@@ -301,14 +300,17 @@ if command -v ufw >/dev/null 2>&1 && ufw status | grep -q 'Status: active'; then
     done
 fi
 echo
+
 if [[ -z "$RADIUSIP" ]]; then
     read -p "Radius Server IP: " -e -i "127.0.0.1" RADIUSIP < /dev/tty
 fi
 echo
+
 if [[ -z "$RADIUSPASS" ]]; then
     read -p "Radius Shared Secret: " -e -i "radius_secret" RADIUSPASS < /dev/tty
 fi
 echo
+
 echo "Select the DNS to use for clients:"
 echo "   1) Current system resolvers"
 echo "   2) Cloudflare"
@@ -318,9 +320,13 @@ if [[ -z "$DNS" ]]; then
     read -p "DNS [1-4]: " -e -i 3 DNS < /dev/tty
 fi
 echo
+
 if [[ -z "$CLIENT" ]]; then
-    read -p "Client config file name (one word, e.g., client): " -e -i client CLIENT < /dev/tty
+    # Trying to get the country code with curl and using it if successful
+    COUNTRY_CODE=$(curl -s --max-time 3 ifconfig.co/country-iso || echo "client")
+    read -p "Client config file name (one word, e.g., client): " -e -i "$COUNTRY_CODE" CLIENT < /dev/tty
 fi
+
 echo
 echo "-------------------------------------------"
 echo "Installation will now begin. Please wait."
@@ -684,7 +690,7 @@ sysctl -p /etc/sysctl.d/30-openvpn-forward.conf
 
 NIC=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
 
-# --- مدیریت فایروال‌ها: UFW، firewalld، nftables، iptables ---
+# --- Firewall management: UFW, firewalld, nftables, iptables ---
 if command -v ufw >/dev/null 2>&1 && ufw status | grep -q 'Status: active'; then
     for proto in udp tcp; do
         ufw allow $PORT/$proto
