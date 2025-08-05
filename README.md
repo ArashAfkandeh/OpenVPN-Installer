@@ -36,7 +36,7 @@ curl -sSL https://raw.githubusercontent.com/ArashAfkandeh/OpenVPN-Installer/main
 
 ## 📝 پارامترهای نصب
 
-این اسکریپت می‌تواند پارامترهای زیر را به صورت خطی دریافت کند تا در حالت غیرتعاملی اجرا شود.  ترتیب آن‌ها مشابه ocserv است:
+این اسکریپت می‌تواند پارامترهای زیر را به صورت خطی دریافت کند تا در حالت غیرتعاملی اجرا شود:
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/ArashAfkandeh/OpenVPN-Installer/main/install_openvpn.sh | sudo bash -s -- [PUBLIC_IP] [PROTOCOL] [PORT] [RADIUS_IP] [RADIUS_SECRET] [DNS_CHOICE] [CLIENT_NAME]
