@@ -312,7 +312,7 @@ fi
 echo
 
 echo "Select the DNS to use for clients:"
-echo "   1) Current system resolvers"
+echo "   1) System default"
 echo "   2) Google"
 echo "   3) Cloudflare"
 echo "   4) OpenDNS"
@@ -1070,7 +1070,7 @@ while true; do
             # Change DNS Servers
             clear
             echo
-            echo -e "  ${C_CYAN}1)${C_OFF} System  ${C_CYAN}2)${C_OFF} Google  ${C_CYAN}3)${C_OFF} Cloudflare  ${C_CYAN}4)${C_OFF} OpenDNS"
+            echo -e "  ${C_CYAN}1)${C_OFF} System default  ${C_CYAN}2)${C_OFF} Google  ${C_CYAN}3)${C_OFF} Cloudflare  ${C_CYAN}4)${C_OFF} OpenDNS"
             read -p " -> Enter DNS choice: " val
             # Remove existing DNS push statements
             sed -i '/^push "dhcp-option DNS/d' "$OV_CONF"
