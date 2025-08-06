@@ -55,11 +55,7 @@ curl -sSL https://raw.githubusercontent.com/ArashAfkandeh/OpenVPN-Installer/main
 - `PORT`: شماره پورت OpenVPN (پیش‌فرض 1194)
 - `RADIUS_IP`: آدرس IP سرور RADIUS
 - `RADIUS_SECRET`: کلید مشترک RADIUS
-- `DNS_CHOICE`: انتخاب سرور DNS:
-- 1: سیستم
-- 3: گوگل
-- 2: کلودفلر
-- 4: OpenDNS
+- `DNS_CHOICE`: انتخاب سرور DNS: (1-سیستم  2-گوگل  3-کلودفلر  - 4-OpenDNS)
 - 
 - `CLIENT_NAME`: نام فایل پیکربندی کلاینت (مثلاً client)
 
