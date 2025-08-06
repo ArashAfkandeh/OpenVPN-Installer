@@ -313,11 +313,11 @@ echo
 
 echo "Select the DNS to use for clients:"
 echo "   1) Current system resolvers"
-echo "   2) Cloudflare"
-echo "   3) Google"
+echo "   2) Google"
+echo "   3) Cloudflare"
 echo "   4) OpenDNS"
 if [[ -z "$DNS" ]]; then
-    read -p "DNS [1-4]: " -e -i 3 DNS < /dev/tty
+    read -p "DNS [1-4]: " -e -i 2 DNS < /dev/tty
 fi
 echo
 
@@ -677,8 +677,8 @@ case $DNS in
         if grep -q "127.0.0.53" "/etc/resolv.conf"; then RESOLVCONF='/run/systemd/resolve/resolv.conf'; else RESOLVCONF='/etc/resolv.conf'; fi
         grep -v '#' $RESOLVCONF | grep 'nameserver' | grep -E -o '[0-9]{1,3}(\.[0-9]{1,3}){3}' | while read -r line; do
             echo "push \"dhcp-option DNS $line\"" >> /etc/openvpn/server/server.conf; done ;;
-    2) echo 'push "dhcp-option DNS 1.1.1.1"' >> /etc/openvpn/server/server.conf; echo 'push "dhcp-option DNS 1.0.0.1"' >> /etc/openvpn/server/server.conf ;;
-    3) echo 'push "dhcp-option DNS 8.8.8.8"' >> /etc/openvpn/server/server.conf; echo 'push "dhcp-option DNS 8.8.4.4"' >> /etc/openvpn/server/server.conf ;;
+    2) echo 'push "dhcp-option DNS 8.8.8.8"' >> /etc/openvpn/server/server.conf; echo 'push "dhcp-option DNS 8.8.4.4"' >> /etc/openvpn/server/server.conf ;;
+    3) echo 'push "dhcp-option DNS 1.1.1.1"' >> /etc/openvpn/server/server.conf; echo 'push "dhcp-option DNS 1.0.0.1"' >> /etc/openvpn/server/server.conf ;;
     4) echo 'push "dhcp-option DNS 208.67.222.222"' >> /etc/openvpn/server/server.conf; echo 'push "dhcp-option DNS 208.67.220.220"' >> /etc/openvpn/server/server.conf ;;
 esac
 echo "Server configuration complete."
@@ -1070,7 +1070,7 @@ while true; do
             # Change DNS Servers
             clear
             echo
-            echo -e "  ${C_CYAN}1)${C_OFF} System  ${C_CYAN}2)${C_OFF} Cloudflare  ${C_CYAN}3)${C_OFF} Google  ${C_CYAN}4)${C_OFF} OpenDNS"
+            echo -e "  ${C_CYAN}1)${C_OFF} System  ${C_CYAN}2)${C_OFF} Google  ${C_CYAN}3)${C_OFF} Cloudflare  ${C_CYAN}4)${C_OFF} OpenDNS"
             read -p " -> Enter DNS choice: " val
             # Remove existing DNS push statements
             sed -i '/^push "dhcp-option DNS/d' "$OV_CONF"
@@ -1087,12 +1087,12 @@ while true; do
                     done
                     ;;
                 2)
-                    echo 'push "dhcp-option DNS 1.1.1.1"' >> "$OV_CONF"
-                    echo 'push "dhcp-option DNS 1.0.0.1"' >> "$OV_CONF"
-                    ;;
-                3)
                     echo 'push "dhcp-option DNS 8.8.8.8"' >> "$OV_CONF"
                     echo 'push "dhcp-option DNS 8.8.4.4"' >> "$OV_CONF"
+                    ;;
+                3)
+                    echo 'push "dhcp-option DNS 1.1.1.1"' >> "$OV_CONF"
+                    echo 'push "dhcp-option DNS 1.0.0.1"' >> "$OV_CONF"
                     ;;
                 4)
                     echo 'push "dhcp-option DNS 208.67.222.222"' >> "$OV_CONF"
