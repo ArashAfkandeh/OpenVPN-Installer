@@ -637,7 +637,6 @@ tls-auth /etc/openvpn/server/ta.key 0
 topology subnet
 server 10.8.0.0 255.255.255.0
 ifconfig-pool-persist /etc/openvpn/server/ipp.txt
-duplicate-cn
 keepalive 10 120
 cipher AES-256-CBC
 ; Specify data ciphers to support negotiation with modern clients. Without this,
@@ -857,9 +856,6 @@ get_dns() {
 is_valid_port() {
     [[ "$1" =~ ^[0-9]+$ ]] && [ "$1" -ge 1 ] && [ "$1" -le 65535 ]
 }
-is_valid_ip() {
-    [[ "$1" =~ ^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$ ]]
-}
 
 restart_openvpn() {
     systemctl restart openvpn-server@server.service
@@ -1035,10 +1031,6 @@ while true; do
         3)
             # Edit RADIUS IP
             read -p " -> Enter new RADIUS IP: " val
-            if ! is_valid_ip "$val"; then
-                pause_for_error "Invalid IP format."
-                continue
-            fi
             # Update RADIUS IP in plugin config for both auth and accounting
             sed -i -E "s/\"Server\"[[:space:]]*:[[:space:]]*\"[0-9\.]+:1812\"/\"Server\": \"${val}:1812\"/" "$PLUGIN_CONF"
             sed -i -E "s/\"Server\"[[:space:]]*:[[:space:]]*\"[0-9\.]+:1813\"/\"Server\": \"${val}:1813\"/" "$PLUGIN_CONF"
