@@ -2,6 +2,10 @@
 
 set -e
 
+# --- UI Color Definitions ---
+C_OFF='\033[0m'
+C_GREEN='\033[0;32m'
+
 # --- Uninstall Option ---
 if [[ "$1" == "uninstall" ]]; then
     echo "Completely removing OpenVPN and settings..."
@@ -798,15 +802,15 @@ clear
 echo "Installation completed successfully!"
 echo
 echo "======================================================="
-echo "  Server IP:         $PUBLICIP"
-echo "  Port:              $PORT"
-echo "  Protocol:          $PROTOCOL"
-echo "  Authentication:    Radius (Username & Password)"
+echo -e "  Server IP:         ${C_GREEN}$PUBLICIP${C_OFF}"
+echo -e "  Port:              ${C_GREEN}$PORT${C_OFF}"
+echo -e "  Protocol:          ${C_GREEN}$PROTOCOL${C_OFF}"
+echo -e "  Authentication:    ${C_GREEN}Radius (Username & Password)${C_OFF}"
 echo "======================================================="
 echo
 echo "The client configuration file is available at:"
 echo ""
-echo "  ${C_GREEN}/root/$CLIENT.ovpn${C_OFF}"
+echo -e "  ${C_GREEN}/root/$CLIENT.ovpn${C_OFF}"
 echo
 echo "You can share this single file with all your users."
 echo "For best results, it is recommended to reboot the server now: reboot"
