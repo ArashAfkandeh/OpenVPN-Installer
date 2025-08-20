@@ -746,6 +746,19 @@ fi
 echo "Networking configured."
 sleep 2
 
+# --- Configure systemd service limits ---
+echo "Configuring systemd service limits..."
+SERVICE_FILE="/usr/local/lib/systemd/system/openvpn-server@.service"
+if [ -f "$SERVICE_FILE" ]; then
+    # Replace LimitNPROC=10 with higher limits for performance
+    sed -i '/^LimitNPROC=10$/c\LimitNPROC=infinity\nTasksMax=infinity\nLimitNOFILE=524288' "$SERVICE_FILE"
+    # Reload systemd to apply the changes
+    systemctl daemon-reload
+    echo "Systemd service limits configured."
+else
+    echo "WARNING: Service file not found at $SERVICE_FILE. Skipping limit configuration."
+fi
+
 # --- Start OpenVPN Service ---
 echo "Starting OpenVPN service..."
 systemctl enable --now openvpn-server@server.service
