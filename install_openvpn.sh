@@ -341,6 +341,8 @@ sleep 3
 echo "Installing dependencies..."
 if [[ "$OS" = 'debian' ]]; then
     apt-get update
+    echo "Configuring needrestart for non-interactive mode..."
+    sed -i 's/^#\$nrconf{restart} = .*/\$nrconf{restart} = "a";/' /etc/needrestart/needrestart.conf 2>/dev/null || echo "  (Setting needrestart failed - file may not exist)"
     export DEBIAN_FRONTEND=noninteractive
     echo iptables-persistent iptables-persistent/autosave_v4 boolean true | debconf-set-selections
     echo iptables-persistent iptables-persistent/autosave_v6 boolean true | debconf-set-selections
