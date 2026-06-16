@@ -120,7 +120,6 @@ func main() {
 		rfc2865.UserName_SetString(packet, username)
 		rfc2865.UserPassword_SetString(packet, password)
 		
-		// Set standard auth attributes
 		packet.Add(radius.Type(4), radius.Attribute(nasIP))
 		packet.Add(radius.Type(32), radius.Attribute([]byte(nasID)))
 		packet.Add(radius.Type(61), radius.NewInteger(5)) // Virtual
@@ -180,7 +179,6 @@ func main() {
 		packet.Add(radius.Type(6), radius.NewInteger(2)) // Framed-User
 		packet.Add(radius.Type(7), radius.NewInteger(1)) // PPP
 
-		// Inject Traffic on Stop
 		if action == "stop" {
 			packet.Add(radius.Type(46), radius.NewInteger(uint32(sessionTime)))
 			packet.Add(radius.Type(42), radius.NewInteger(uint32(bytesIn%4294967296)))
@@ -199,7 +197,7 @@ func main() {
 	}
 
 	// ==========================================
-	// INTERIM UPDATES (GOROUTINES / PARALLEL)
+	// INTERIM UPDATES (DYNAMIC HEADER PARSING)
 	// ==========================================
 	if action == "interim" {
 		file, err := os.Open("/var/log/openvpn/openvpn-status.log")
@@ -211,26 +209,63 @@ func main() {
 		var wg sync.WaitGroup
 		scanner := bufio.NewScanner(file)
 
+		// Dynamic Indexes
+		idxUser, idxRealIP, idxClientIP, idxBytesIn, idxBytesOut, idxConnTime := -1, -1, -1, -1, -1, -1
+
 		for scanner.Scan() {
 			line := scanner.Text()
 			parts := strings.Split(line, ",")
-			
-			// Process only CLIENT_LIST rows (length > 8)
-			if len(parts) > 8 && parts[0] == "CLIENT_LIST" {
+
+			// 1. Map Headers Dynamically
+			if len(parts) > 1 && parts[0] == "HEADER" && parts[1] == "CLIENT_LIST" {
+				for i, col := range parts {
+					col = strings.TrimSpace(col)
+					switch col {
+					case "Common Name":
+						idxUser = i - 1
+					case "Real Address":
+						idxRealIP = i - 1
+					case "Virtual Address":
+						idxClientIP = i - 1
+					case "Bytes Received":
+						idxBytesIn = i - 1
+					case "Bytes Sent":
+						idxBytesOut = i - 1
+					case "Connected Since (time_t)":
+						idxConnTime = i - 1
+					}
+				}
+				continue
+			}
+
+			// 2. Process Client Rows
+			if len(parts) > 1 && parts[0] == "CLIENT_LIST" {
+				// Security Check: Ensure mapping was successful
+				if idxUser == -1 || idxBytesIn == -1 || idxConnTime == -1 {
+					continue
+				}
+				if len(parts) <= idxUser || len(parts) <= idxBytesOut || len(parts) <= idxConnTime {
+					continue
+				}
+
 				wg.Add(1)
-				// Launch a Goroutine to handle thousands of requests concurrently
 				go func(p []string) {
 					defer wg.Done()
-					username := p[1]
-					realIP := strings.Split(p[2], ":")[0]
-					clientIP := p[3]
-					bytesIn, _ := strconv.ParseUint(p[4], 10, 64)
-					bytesOut, _ := strconv.ParseUint(p[5], 10, 64)
-					connTime, _ := strconv.ParseInt(p[7], 10, 64)
+					
+					username := strings.TrimSpace(p[idxUser])
+					realIP := strings.Split(strings.TrimSpace(p[idxRealIP]), ":")[0]
+					clientIP := strings.TrimSpace(p[idxClientIP])
+					
+					bytesIn, _ := strconv.ParseUint(strings.TrimSpace(p[idxBytesIn]), 10, 64)
+					bytesOut, _ := strconv.ParseUint(strings.TrimSpace(p[idxBytesOut]), 10, 64)
+					connTime, _ := strconv.ParseInt(strings.TrimSpace(p[idxConnTime]), 10, 64)
 
 					sessionID := getSessionID(username)
-					sessionTime := time.Now().Unix() - connTime
-					if sessionTime < 0 {
+					
+					// Calculate accurate session time
+					currentUnix := time.Now().Unix()
+					sessionTime := currentUnix - connTime
+					if sessionTime < 0 || connTime == 0 {
 						sessionTime = 0
 					}
 
@@ -269,7 +304,6 @@ func main() {
 			}
 		}
 		
-		// Wait for all goroutines to finish instantly
 		wg.Wait()
 		os.Exit(0)
 	}
