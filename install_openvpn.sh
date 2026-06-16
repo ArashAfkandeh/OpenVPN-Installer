@@ -17,8 +17,8 @@ print_error() { echo -e "${C_RED}✖ $1${C_OFF}" >&2; }
 
 # --- GitHub Repo Definitions ---
 GITHUB_REPO="ArashAfkandeh/OpenVPN-Installer"
-PANEL_URL="https://raw.githubusercontent.com/ArashAfkandeh/OpenVPN-Installer/main/management_panel.sh"
-RADIUS_URL="https://raw.githubusercontent.com/ArashAfkandeh/OpenVPN-Installer/main/ovpn-radius.sh"
+PANEL_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/main/management_panel.sh"
+RADIUS_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/main/ovpn-radius.sh"
 
 # --- Uninstall Option ---
 if [[ "$1" == "uninstall" ]]; then
@@ -232,7 +232,7 @@ user nobody
 group $GROUPNAME
 persist-key
 persist-tun
-status /var/log/openvpn/openvpn-status.log
+status /var/log/openvpn/openvpn-status.log 30
 status-version 2
 log-append /var/log/openvpn/openvpn.log
 verb 3
@@ -257,7 +257,7 @@ case $DNS in
 esac
 
 # --- RADIUS Interim Updates Timer ---
-print_header "Setting up RADIUS Interim Updates"
+print_header "Setting up RADIUS Interim Updates (1min interval)"
 cat > /etc/systemd/system/openvpn-radius-interim.service <<EOF
 [Unit]
 Description=OpenVPN RADIUS Interim Updates
@@ -268,10 +268,10 @@ EOF
 
 cat > /etc/systemd/system/openvpn-radius-interim.timer <<EOF
 [Unit]
-Description=Run OpenVPN RADIUS Interim Updates every 3 minutes
+Description=Run OpenVPN RADIUS Interim Updates every 1 minute
 [Timer]
 OnBootSec=1min
-OnUnitActiveSec=3min
+OnUnitActiveSec=1min
 [Install]
 WantedBy=timers.target
 EOF
