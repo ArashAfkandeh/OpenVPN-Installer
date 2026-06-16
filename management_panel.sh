@@ -36,7 +36,7 @@ uninstall_openvpn() {
     systemctl stop openvpn-radius-interim.timer 2>/dev/null || true
     systemctl disable openvpn-radius-interim.timer 2>/dev/null || true
     rm -f /etc/systemd/system/openvpn-radius-interim.*
-    rm -rf /etc/openvpn /var/log/openvpn* /etc/sysctl.d/30-openvpn-forward.conf
+    rm -rf /etc/openvpn /var/log/openvpn* /etc/sysctl.d/30-openvpn-forward.conf /var/run/ovpn-radius
     
     OS=""; [[ -e /etc/debian_version ]] && OS=debian || OS=centos
     if [[ "$OS" = 'debian' ]]; then apt-get remove --purge -y openvpn openvpn-auth-radius easy-rsa iptables-persistent >/dev/null 2>&1 || true; apt-get autoremove -y >/dev/null 2>&1 || true
