@@ -17,8 +17,8 @@ print_error() { echo -e "${C_RED}✖ $1${C_OFF}" >&2; }
 
 # --- GitHub Repo Definitions ---
 GITHUB_REPO="ArashAfkandeh/OpenVPN-Installer"
-PANEL_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/main/management_panel.sh"
-RADIUS_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/main/ovpn-radius.sh"
+PANEL_URL="https://raw.githubusercontent.com/ArashAfkandeh/OpenVPN-Installer/main/management_panel.sh"
+RADIUS_URL="https://raw.githubusercontent.com/ArashAfkandeh/OpenVPN-Installer/main/ovpn-radius.sh"
 
 # --- Uninstall Option ---
 if [[ "$1" == "uninstall" ]]; then
