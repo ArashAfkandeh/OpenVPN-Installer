@@ -39,8 +39,8 @@ uninstall_openvpn() {
     rm -rf /etc/openvpn /var/log/openvpn* /etc/sysctl.d/30-openvpn-forward.conf /var/run/ovpn-radius
     
     OS=""; [[ -e /etc/debian_version ]] && OS=debian || OS=centos
-    if [[ "$OS" = 'debian' ]]; then apt-get remove --purge -y openvpn openvpn-auth-radius easy-rsa iptables-persistent >/dev/null 2>&1 || true; apt-get autoremove -y >/dev/null 2>&1 || true
-    else yum remove -y openvpn openvpn-auth-radius easy-rsa iptables-services >/dev/null 2>&1 || true; fi
+    if [[ "$OS" = 'debian' ]]; then apt-get remove --purge -y openvpn easy-rsa iptables-persistent >/dev/null 2>&1 || true; apt-get autoremove -y >/dev/null 2>&1 || true
+    else yum remove -y openvpn easy-rsa iptables-services >/dev/null 2>&1 || true; fi
     
     if command -v ufw >/dev/null 2>&1 && ufw status | grep -q 'Status: active'; then
         for p in udp tcp; do ufw delete allow $(get_port)/$p >/dev/null 2>&1 || true; ufw delete allow 1194/$p >/dev/null 2>&1 || true; ufw delete allow 1812/$p >/dev/null 2>&1 || true; ufw delete allow 1813/$p >/dev/null 2>&1 || true; done
@@ -70,7 +70,7 @@ while true; do
     echo -e "${C_PURPLE}|---[ Management ]-----------------------------------+${C_OFF}\n"
     echo -e "  ${C_CYAN}6)${C_OFF} View Live Logs"
     echo -e "  ${C_CYAN}7)${C_OFF} Restart Service"
-    echo -e "  ${C_CYAN}8)${C_OFF} Update Panel & Plugins from GitHub"
+    echo -e "  ${C_CYAN}8)${C_OFF} Update Panel from GitHub"
     echo -e "  ${C_CYAN}9)${C_OFF} ${C_RED}Uninstall OpenVPN${C_OFF}\n"
     echo -e "${C_PURPLE}+----------------------------------------------------+${C_OFF}"
     
@@ -110,12 +110,10 @@ while true; do
         7) 
             if restart_openvpn; then pause_for_success "Service restarted."; else pause_for_error "Failed to restart."; fi ;;
         8)
-            echo "  -> Fetching latest updates from GitHub..."
+            echo "  -> Fetching latest panel update from GitHub..."
             PANEL_URL="https://raw.githubusercontent.com/ArashAfkandeh/OpenVPN-Installer/main/management_panel.sh"
-            RADIUS_URL="https://raw.githubusercontent.com/ArashAfkandeh/OpenVPN-Installer/main/ovpn-radius.sh"
-            if curl -sSL "${PANEL_URL}?v=$(date +%s)" -o /usr/local/bin/ov-p && curl -sSL "${RADIUS_URL}?v=$(date +%s)" -o /etc/openvpn/plugin/ovpn-radius.sh; then
-                chmod +x /usr/local/bin/ov-p /etc/openvpn/plugin/ovpn-radius.sh
-                systemctl restart openvpn-server@server.service
+            if curl -sSL "${PANEL_URL}?v=$(date +%s)" -o /usr/local/bin/ov-p; then
+                chmod +x /usr/local/bin/ov-p
                 pause_for_success "Successfully updated! Restarting panel..."
                 exec /usr/local/bin/ov-p
             else pause_for_error "Failed to download update."; fi ;;
