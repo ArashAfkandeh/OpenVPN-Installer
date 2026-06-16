@@ -26,7 +26,6 @@ if [[ "$1" == "uninstall" ]]; then
     systemctl stop openvpn-server@server.service 2>/dev/null || true
     systemctl disable openvpn-server@server.service 2>/dev/null || true
     
-    # Stop & Remove Interim Timer
     systemctl stop openvpn-radius-interim.timer 2>/dev/null || true
     systemctl disable openvpn-radius-interim.timer 2>/dev/null || true
     rm -f /etc/systemd/system/openvpn-radius-interim.*
@@ -35,10 +34,7 @@ if [[ "$1" == "uninstall" ]]; then
     sysctl --system >/dev/null 2>&1 || true
     
     if [[ -f /var/log/openvpn-installed-files.txt ]]; then
-        while read -r entry; do
-            target="/$entry"
-            if [[ -e "$target" || -L "$target" ]]; then rm -rf "$target"; fi
-        done < /var/log/openvpn-installed-files.txt
+        while read -r entry; do target="/$entry"; if [[ -e "$target" || -L "$target" ]]; then rm -rf "$target"; fi; done < /var/log/openvpn-installed-files.txt
         rm -f /var/log/openvpn-installed-files.txt
         systemctl daemon-reload
     fi
@@ -89,8 +85,7 @@ if command -v openvpn >/dev/null || [[ -d /etc/openvpn ]] || systemctl list-unit
         systemctl daemon-reload
         print_success "Old configuration removed."
     else
-        print_error "Installation aborted."
-        exit 1
+        print_error "Installation aborted."; exit 1
     fi
 fi
 
@@ -195,8 +190,7 @@ EOF
 chmod 600 /etc/openvpn/plugin/config.json
 chown nobody:"$GROUPNAME" /etc/openvpn/plugin/config.json
 
-# Cache-Buster included to bypass GitHub CDN Cache
-if ! curl -sSL "${RADIUS_URL}?v=$(date +%s)" -o /etc/openvpn/plugin/ovpn-radius.sh; then print_error "Failed to fetch radius script from GitHub."; exit 1; fi
+if ! curl -sSL "${RADIUS_URL}?v=$(date +%s)" -o /etc/openvpn/plugin/ovpn-radius.sh; then print_error "Failed to fetch radius script."; exit 1; fi
 chmod +x /etc/openvpn/plugin/ovpn-radius.sh
 print_success "Radius plugin fetched and secured."
 
