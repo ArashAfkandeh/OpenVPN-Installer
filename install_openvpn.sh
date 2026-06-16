@@ -18,18 +18,15 @@ print_error() { echo -e "${C_RED}✖ $1${C_OFF}" >&2; }
 # --- GitHub Repo Definitions ---
 GITHUB_REPO="ArashAfkandeh/OpenVPN-Installer"
 PANEL_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/main/management_panel.sh"
-RADIUS_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/main/ovpn-radius.sh"
 
 # --- Uninstall Option ---
 if [[ "$1" == "uninstall" ]]; then
     echo "Completely removing OpenVPN and settings..."
     systemctl stop openvpn-server@server.service 2>/dev/null || true
     systemctl disable openvpn-server@server.service 2>/dev/null || true
-    
     systemctl stop openvpn-radius-interim.timer 2>/dev/null || true
     systemctl disable openvpn-radius-interim.timer 2>/dev/null || true
     rm -f /etc/systemd/system/openvpn-radius-interim.*
-    
     rm -rf /etc/openvpn /var/log/openvpn* /etc/sysctl.d/30-openvpn-forward.conf /var/run/ovpn-radius
     sysctl --system >/dev/null 2>&1 || true
     
@@ -40,10 +37,10 @@ if [[ "$1" == "uninstall" ]]; then
     fi
     
     if [[ -e /etc/debian_version ]]; then
-        apt-get remove --purge -y openvpn openvpn-auth-radius easy-rsa iptables-persistent >/dev/null 2>&1 || true
+        apt-get remove --purge -y openvpn easy-rsa iptables-persistent >/dev/null 2>&1 || true
         apt-get autoremove -y >/dev/null 2>&1 || true
     else
-        yum remove -y openvpn openvpn-auth-radius easy-rsa iptables-services >/dev/null 2>&1 || true
+        yum remove -y openvpn easy-rsa iptables-services >/dev/null 2>&1 || true
     fi
     
     if command -v ufw >/dev/null 2>&1 && ufw status | grep -q 'Status: active'; then
@@ -79,7 +76,7 @@ if command -v openvpn >/dev/null || [[ -d /etc/openvpn ]] || systemctl list-unit
         while pgrep -x openvpn >/dev/null && [ "$timeout" -gt 0 ]; do sleep 1; ((timeout--)); done
         if pgrep -x openvpn >/dev/null; then killall -9 openvpn >/dev/null 2>&1 || true; fi
 
-        apt-get remove --purge -y openvpn openvpn-auth-radius easy-rsa iptables-persistent >/dev/null 2>&1 || true
+        apt-get remove --purge -y openvpn easy-rsa iptables-persistent >/dev/null 2>&1 || true
         rm -rf /etc/openvpn /var/log/openvpn /usr/local/sbin/openvpn* /usr/local/bin/ov-p || true
         apt-get autoremove -y >/dev/null 2>&1 || true
         systemctl daemon-reload
@@ -103,7 +100,7 @@ download_package() {
     echo "${TMP_DIR}/${PACKAGE_NAME}"
 }
 
-clear; echo -e "\n${C_GREEN}OpenVPN with Radius Authentication Installer${C_OFF}\n"; sleep 1
+clear; echo -e "\n${C_GREEN}OpenVPN with Radius Authentication Installer (Pre-Compiled Golang)${C_OFF}\n"; sleep 1
 
 LOCAL_PACKAGE_PATH="/root/openvpn-2.6.14-local.tar.gz"
 PACKAGE_PATH=""
@@ -139,14 +136,14 @@ if [[ "$OS" = 'debian' ]]; then
     export DEBIAN_FRONTEND=noninteractive
     echo iptables-persistent iptables-persistent/autosave_v4 boolean true | debconf-set-selections
     echo iptables-persistent iptables-persistent/autosave_v6 boolean true | debconf-set-selections
-    apt-get install -yq easy-rsa iptables-persistent wget lsb-release freeradius-utils liblzo2-2 curl gawk >/dev/null
+    apt-get install -yq easy-rsa iptables-persistent wget lsb-release liblzo2-2 curl gawk >/dev/null
 else
     yum install -y epel-release >/dev/null
-    yum install -y easy-rsa iptables-services wget freeradius-utils lzo curl gawk >/dev/null
+    yum install -y easy-rsa iptables-services wget lzo curl gawk >/dev/null
 fi
 print_success "Dependencies installed."
 
-# --- Extract OpenVPN ---
+# --- Extract OpenVPN & Go Binary ---
 tar -tf "$PACKAGE_PATH" > /var/log/openvpn-installed-files.txt
 tar -C / -xzf "$PACKAGE_PATH"
 systemctl daemon-reload
@@ -171,7 +168,7 @@ chown nobody:"$GROUPNAME" /etc/openvpn/server/crl.pem
 print_success "Certificates and tls-auth key generated."
 
 # --- Radius Plugin & Config ---
-print_header "Configuring RADIUS & Permissions"
+print_header "Configuring Pre-Compiled RADIUS Plugin"
 mkdir -p /etc/openvpn/plugin /var/log/openvpn /var/run/ovpn-radius
 touch /var/log/openvpn/radius-plugin.log
 chown nobody:"$GROUPNAME" /var/log/openvpn/radius-plugin.log /var/run/ovpn-radius
@@ -190,9 +187,15 @@ EOF
 chmod 600 /etc/openvpn/plugin/config.json
 chown nobody:"$GROUPNAME" /etc/openvpn/plugin/config.json
 
-if ! curl -sSL "${RADIUS_URL}?v=$(date +%s)" -o /etc/openvpn/plugin/ovpn-radius.sh; then print_error "Failed to fetch radius script."; exit 1; fi
-chmod +x /etc/openvpn/plugin/ovpn-radius.sh
-print_success "Radius plugin fetched and secured."
+# Check if the pre-compiled binary exists in the extracted tarball path
+if [ -f "/usr/local/sbin/ovpn-radius" ]; then
+    mv /usr/local/sbin/ovpn-radius /etc/openvpn/plugin/ovpn-radius
+    chmod +x /etc/openvpn/plugin/ovpn-radius
+    print_success "RADIUS plugin configured."
+else
+    print_error "CRITICAL ERROR: 'ovpn-radius' binary not found in /usr/local/sbin/. Make sure it is included in your tar.gz release!"
+    exit 1
+fi
 
 # --- Smart MTU Calculator ---
 OUTGOING_IFACE=$(ip route show default | awk '/default/ {print $5}' | head -n 1 || true)
@@ -233,9 +236,9 @@ log-append /var/log/openvpn/openvpn.log
 verb 3
 crl-verify /etc/openvpn/server/crl.pem
 script-security 3
-auth-user-pass-verify "/etc/openvpn/plugin/ovpn-radius.sh" via-env
-client-connect "/etc/openvpn/plugin/ovpn-radius.sh"
-client-disconnect "/etc/openvpn/plugin/ovpn-radius.sh"
+auth-user-pass-verify "/etc/openvpn/plugin/ovpn-radius" via-env
+client-connect "/etc/openvpn/plugin/ovpn-radius"
+client-disconnect "/etc/openvpn/plugin/ovpn-radius"
 verify-client-cert none
 username-as-common-name
 push "redirect-gateway def1 bypass-dhcp"
@@ -258,7 +261,7 @@ cat > /etc/systemd/system/openvpn-radius-interim.service <<EOF
 Description=OpenVPN RADIUS Interim Updates
 [Service]
 Type=oneshot
-ExecStart=/etc/openvpn/plugin/ovpn-radius.sh interim
+ExecStart=/etc/openvpn/plugin/ovpn-radius interim
 EOF
 
 cat > /etc/systemd/system/openvpn-radius-interim.timer <<EOF
@@ -272,7 +275,7 @@ WantedBy=timers.target
 EOF
 systemctl daemon-reload
 systemctl enable --now openvpn-radius-interim.timer
-print_success "Interim updates (Live IBSng traffic) enabled."
+print_success "Interim updates enabled."
 
 # --- Firewall & Sysctl (BBR & Dual-Stack IPv6) ---
 print_header "Configuring Firewall, BBR & Dual-Stack IPv6"
@@ -344,7 +347,7 @@ echo -e "\n======================================================="
 echo -e "  Server IP:         ${C_GREEN}$PUBLICIP${C_OFF}"
 echo -e "  Port:              ${C_GREEN}$PORT${C_OFF}"
 echo -e "  Protocol:          ${C_GREEN}$PROTOCOL${C_OFF}"
-echo -e "  Authentication:    ${C_GREEN}Radius + tls-auth${C_OFF}"
+echo -e "  Authentication:    ${C_GREEN}Radius (Pre-Compiled Golang)${C_OFF}"
 echo -e "======================================================="
 echo -e "\nYour client profile is ready at: ${C_GREEN}/root/$CLIENT.ovpn${C_OFF}"
 echo -e "Access the Management Panel by typing: ${C_GREEN}ov-p${C_OFF}\n"
