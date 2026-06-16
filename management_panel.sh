@@ -33,6 +33,9 @@ uninstall_openvpn() {
     echo -e "\n${C_YELLOW}Uninstalling OpenVPN...${C_OFF}"
     systemctl stop openvpn-server@server.service 2>/dev/null || true
     systemctl disable openvpn-server@server.service 2>/dev/null || true
+    systemctl stop openvpn-radius-interim.timer 2>/dev/null || true
+    systemctl disable openvpn-radius-interim.timer 2>/dev/null || true
+    rm -f /etc/systemd/system/openvpn-radius-interim.*
     rm -rf /etc/openvpn /var/log/openvpn* /etc/sysctl.d/30-openvpn-forward.conf
     
     OS=""; [[ -e /etc/debian_version ]] && OS=debian || OS=centos
@@ -43,6 +46,7 @@ uninstall_openvpn() {
         for p in udp tcp; do ufw delete allow $(get_port)/$p >/dev/null 2>&1 || true; ufw delete allow 1194/$p >/dev/null 2>&1 || true; ufw delete allow 1812/$p >/dev/null 2>&1 || true; ufw delete allow 1813/$p >/dev/null 2>&1 || true; done
     fi
     rm -f /usr/local/bin/ov-p
+    systemctl daemon-reload
     echo -e "\n${C_GREEN}✔ OpenVPN completely uninstalled.${C_OFF}"; exit 0
 }
 
