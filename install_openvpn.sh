@@ -17,8 +17,8 @@ print_error() { echo -e "${C_RED}✖ $1${C_OFF}" >&2; }
 
 # --- GitHub Repo Definitions ---
 GITHUB_REPO="ArashAfkandeh/OpenVPN-Installer"
-PANEL_URL="https://raw.githubusercontent.com/ArashAfkandeh/OpenVPN-Installer/main/management_panel.sh"
-RADIUS_URL="https://raw.githubusercontent.com/ArashAfkandeh/OpenVPN-Installer/main/ovpn-radius.sh"
+PANEL_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/main/management_panel.sh"
+RADIUS_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/main/ovpn-radius.sh"
 
 # --- Uninstall Option ---
 if [[ "$1" == "uninstall" ]]; then
@@ -154,12 +154,11 @@ tar -C / -xzf "$PACKAGE_PATH"
 systemctl daemon-reload
 
 # --- Setup Easy-RSA & PKI ---
-print_header "Setting up PKI (tls-crypt enabled)"
+print_header "Setting up PKI (tls-auth enabled)"
 mkdir -p /etc/openvpn/server/easy-rsa
 cp -r /usr/share/easy-rsa/* /etc/openvpn/server/easy-rsa/
 cd /etc/openvpn/server/easy-rsa/
 
-# Add --batch to prevent easyrsa from waiting for user confirmation
 ./easyrsa init-pki >/dev/null
 ./easyrsa --batch build-ca nopass >/dev/null
 ./easyrsa --batch gen-dh >/dev/null
@@ -170,9 +169,9 @@ EASYRSA_CRL_DAYS=3650 ./easyrsa --batch gen-crl >/dev/null
 cp pki/ca.crt pki/private/server.key pki/issued/server.crt pki/dh.pem pki/crl.pem /etc/openvpn/server/
 chown nobody:"$GROUPNAME" /etc/openvpn/server/crl.pem
 
-# Generate tls-crypt key securely using the newly installed OpenVPN binary
-/usr/local/sbin/openvpn --genkey secret /etc/openvpn/server/tc.key
-print_success "Certificates and tls-crypt key generated."
+# Generate tls-auth key securely (Restored for backward compatibility)
+/usr/local/sbin/openvpn --genkey secret /etc/openvpn/server/ta.key
+print_success "Certificates and tls-auth key generated."
 
 # --- Radius Plugin & Config ---
 print_header "Configuring RADIUS & Permissions"
@@ -218,7 +217,7 @@ cert /etc/openvpn/server/server.crt
 key /etc/openvpn/server/server.key
 dh /etc/openvpn/server/dh.pem
 auth SHA512
-tls-crypt /etc/openvpn/server/tc.key
+tls-auth /etc/openvpn/server/ta.key 0
 topology subnet
 server 10.8.0.0 255.255.255.0
 server-ipv6 fd00:10:8::/112
@@ -315,7 +314,7 @@ if curl -sSL "$PANEL_URL" -o /usr/local/bin/ov-p; then chmod +x /usr/local/bin/o
     echo "<ca>"; cat /etc/openvpn/server/ca.crt; echo "</ca>"
     echo "<cert>"; cat /etc/openvpn/server/easy-rsa/pki/issued/$CLIENT.crt; echo "</cert>"
     echo "<key>"; cat /etc/openvpn/server/easy-rsa/pki/private/$CLIENT.key; echo "</key>"
-    echo "<tls-crypt>"; cat /etc/openvpn/server/tc.key; echo "</tls-crypt>"
+    echo "<tls-auth>"; cat /etc/openvpn/server/ta.key; echo "</tls-auth>"
 } > "/root/$CLIENT.ovpn"
 
 # --- Finalization ---
@@ -324,7 +323,7 @@ echo -e "\n======================================================="
 echo -e "  Server IP:         ${C_GREEN}$PUBLICIP${C_OFF}"
 echo -e "  Port:              ${C_GREEN}$PORT${C_OFF}"
 echo -e "  Protocol:          ${C_GREEN}$PROTOCOL${C_OFF}"
-echo -e "  Authentication:    ${C_GREEN}Radius + tls-crypt${C_OFF}"
+echo -e "  Authentication:    ${C_GREEN}Radius + tls-auth${C_OFF}"
 echo -e "======================================================="
 echo -e "\nYour client profile is ready at: ${C_GREEN}/root/$CLIENT.ovpn${C_OFF}"
 echo -e "Access the Management Panel by typing: ${C_GREEN}ov-p${C_OFF}\n"
