@@ -68,6 +68,7 @@ case "$ACTION" in
     client_ip="$ifconfig_pool_remote_ip"
     bytes_in="${bytes_received:-0}"
     bytes_out="${bytes_sent:-0}"
+    session_time="${time_duration:-0}"
     
     session_file="$SESSION_DIR/${username}.session"
     if [[ -s "$session_file" ]]; then session_id=$(cat "$session_file"); rm -f "$session_file"; else session_id=$(date +%s%N | head -c 10); fi
@@ -83,6 +84,7 @@ case "$ACTION" in
     ATTR+="Acct-Input-Octets=$in_octets\nAcct-Output-Octets=$out_octets\n"
     if [ "$in_giga" -gt 0 ]; then ATTR+="Acct-Input-Gigawords=$in_giga\n"; fi
     if [ "$out_giga" -gt 0 ]; then ATTR+="Acct-Output-Gigawords=$out_giga\n"; fi
+    ATTR+="Acct-Session-Time=$session_time\nAcct-Authentic=RADIUS\n"
     
     (echo -e "$ATTR" | /usr/bin/radclient -t 3 -r 1 "$RADIUS_ACCT_SERVER" acct "$RADIUS_ACCT_SECRET" >/dev/null 2>&1) &
     exit 0
@@ -92,11 +94,15 @@ case "$ACTION" in
     STATUS_FILE=/var/log/openvpn/openvpn-status.log
     if [ ! -f "$STATUS_FILE" ]; then exit 0; fi
     
-    awk -F ',' '$1 == "CLIENT_LIST" {print $2, $3, $4, $6, $7}' "$STATUS_FILE" | while read -r username real_ip client_ip bytes_in bytes_out; do
+    awk -F ',' '$1 == "CLIENT_LIST" {print $2, $3, $4, $6, $7, $9}' "$STATUS_FILE" | while read -r username real_ip client_ip bytes_in bytes_out conn_time; do
         session_file="$SESSION_DIR/${username}.session"
         if [ -f "$session_file" ]; then
             session_id=$(cat "$session_file")
             real_ip_clean="${real_ip%:*}"
+            
+            current_time=$(date +%s)
+            session_time=$((current_time - conn_time))
+            if [ "$session_time" -lt 0 ]; then session_time=0; fi
             
             in_octets=$((bytes_in % 4294967296)); in_giga=$((bytes_in / 4294967296))
             out_octets=$((bytes_out % 4294967296)); out_giga=$((bytes_out / 4294967296))
@@ -107,6 +113,7 @@ case "$ACTION" in
             ATTR+="Acct-Input-Octets=$in_octets\nAcct-Output-Octets=$out_octets\n"
             if [ "$in_giga" -gt 0 ]; then ATTR+="Acct-Input-Gigawords=$in_giga\n"; fi
             if [ "$out_giga" -gt 0 ]; then ATTR+="Acct-Output-Gigawords=$out_giga\n"; fi
+            ATTR+="Acct-Session-Time=$session_time\nAcct-Authentic=RADIUS\n"
 
             (echo -e "$ATTR" | /usr/bin/radclient -t 2 -r 1 "$RADIUS_ACCT_SERVER" acct "$RADIUS_ACCT_SECRET" >/dev/null 2>&1) &
         fi
