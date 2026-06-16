@@ -115,7 +115,8 @@ case "$ACTION" in
             if [ "$out_giga" -gt 0 ]; then ATTR+="Acct-Output-Gigawords=$out_giga\n"; fi
             ATTR+="Acct-Session-Time=$session_time\nAcct-Authentic=RADIUS\n"
 
-            (echo -e "$ATTR" | /usr/bin/radclient -t 2 -r 1 "$RADIUS_ACCT_SERVER" acct "$RADIUS_ACCT_SECRET" >/dev/null 2>&1) &
+            # Executed Sequentially to prevent Systemd from killing it prematurely
+            echo -e "$ATTR" | /usr/bin/radclient -t 2 -r 1 "$RADIUS_ACCT_SERVER" acct "$RADIUS_ACCT_SECRET" >/dev/null 2>&1
         fi
     done
     exit 0
