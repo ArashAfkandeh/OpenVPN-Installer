@@ -113,7 +113,7 @@ while true; do
             echo "  -> Fetching latest updates from GitHub..."
             PANEL_URL="https://raw.githubusercontent.com/ArashAfkandeh/OpenVPN-Installer/main/management_panel.sh"
             RADIUS_URL="https://raw.githubusercontent.com/ArashAfkandeh/OpenVPN-Installer/main/ovpn-radius.sh"
-            if curl -sSL "$PANEL_URL" -o /usr/local/bin/ov-p && curl -sSL "$RADIUS_URL" -o /etc/openvpn/plugin/ovpn-radius.sh; then
+            if curl -sSL "${PANEL_URL}?v=$(date +%s)" -o /usr/local/bin/ov-p && curl -sSL "${RADIUS_URL}?v=$(date +%s)" -o /etc/openvpn/plugin/ovpn-radius.sh; then
                 chmod +x /usr/local/bin/ov-p /etc/openvpn/plugin/ovpn-radius.sh
                 systemctl restart openvpn-server@server.service
                 pause_for_success "Successfully updated! Restarting panel..."
