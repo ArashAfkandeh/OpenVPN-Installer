@@ -195,7 +195,8 @@ EOF
 chmod 600 /etc/openvpn/plugin/config.json
 chown nobody:"$GROUPNAME" /etc/openvpn/plugin/config.json
 
-if ! curl -sSL "$RADIUS_URL" -o /etc/openvpn/plugin/ovpn-radius.sh; then print_error "Failed to fetch radius script from GitHub."; exit 1; fi
+# Cache-Buster included to bypass GitHub CDN Cache
+if ! curl -sSL "${RADIUS_URL}?v=$(date +%s)" -o /etc/openvpn/plugin/ovpn-radius.sh; then print_error "Failed to fetch radius script from GitHub."; exit 1; fi
 chmod +x /etc/openvpn/plugin/ovpn-radius.sh
 print_success "Radius plugin fetched and secured."
 
@@ -315,7 +316,7 @@ if [ -f "$SERVICE_FILE" ]; then sed -i '/^LimitNPROC=10$/c\LimitNPROC=infinity\n
 systemctl enable --now openvpn-server@server.service >/dev/null
 
 # --- Management Panel Download ---
-if curl -sSL "$PANEL_URL" -o /usr/local/bin/ov-p; then chmod +x /usr/local/bin/ov-p; print_success "Management panel installed (ov-p)."; else print_error "Failed to download panel."; fi
+if curl -sSL "${PANEL_URL}?v=$(date +%s)" -o /usr/local/bin/ov-p; then chmod +x /usr/local/bin/ov-p; print_success "Management panel installed (ov-p)."; else print_error "Failed to download panel."; fi
 
 # --- Client Config Generation ---
 {
