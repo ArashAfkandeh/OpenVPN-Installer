@@ -17,8 +17,8 @@ print_error() { echo -e "${C_RED}✖ $1${C_OFF}" >&2; }
 
 # --- GitHub Repo Definitions ---
 GITHUB_REPO="ArashAfkandeh/OpenVPN-Installer"
-PANEL_URL="https://raw.githubusercontent.com/ArashAfkandeh/OpenVPN-Installer/main/management_panel.sh"
-RADIUS_URL="https://raw.githubusercontent.com/ArashAfkandeh/OpenVPN-Installer/main/ovpn-radius.sh"
+PANEL_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/main/management_panel.sh"
+RADIUS_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/main/ovpn-radius.sh"
 
 # --- Uninstall Option ---
 if [[ "$1" == "uninstall" ]]; then
@@ -158,7 +158,9 @@ print_header "Setting up PKI (tls-crypt enabled)"
 mkdir -p /etc/openvpn/server/easy-rsa
 cp -r /usr/share/easy-rsa/* /etc/openvpn/server/easy-rsa/
 cd /etc/openvpn/server/easy-rsa/
-./easyrsa --batch init-pki >/dev/null
+
+# Add --batch to prevent easyrsa from waiting for user confirmation
+./easyrsa init-pki >/dev/null
 ./easyrsa --batch build-ca nopass >/dev/null
 ./easyrsa --batch gen-dh >/dev/null
 EASYRSA_CERT_EXPIRE=3650 ./easyrsa --batch build-server-full server nopass >/dev/null 2>&1
@@ -167,7 +169,9 @@ EASYRSA_CRL_DAYS=3650 ./easyrsa --batch gen-crl >/dev/null
 
 cp pki/ca.crt pki/private/server.key pki/issued/server.crt pki/dh.pem pki/crl.pem /etc/openvpn/server/
 chown nobody:"$GROUPNAME" /etc/openvpn/server/crl.pem
-openvpn --genkey secret /etc/openvpn/server/tc.key # tls-crypt key
+
+# Generate tls-crypt key securely using the newly installed OpenVPN binary
+/usr/local/sbin/openvpn --genkey secret /etc/openvpn/server/tc.key
 print_success "Certificates and tls-crypt key generated."
 
 # --- Radius Plugin & Config ---
@@ -288,7 +292,7 @@ systemctl enable --now openvpn-server@server.service >/dev/null
 # --- Management Panel Download ---
 if curl -sSL "$PANEL_URL" -o /usr/local/bin/ov-p; then chmod +x /usr/local/bin/ov-p; print_success "Management panel installed (ov-p)."; else print_error "Failed to download panel."; fi
 
-# --- Client Config ---
+# --- Client Config Generation ---
 {
     echo "client"
     echo "dev tun"
