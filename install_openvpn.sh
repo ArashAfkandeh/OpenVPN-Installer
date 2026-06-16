@@ -25,7 +25,13 @@ if [[ "$1" == "uninstall" ]]; then
     echo "Completely removing OpenVPN and settings..."
     systemctl stop openvpn-server@server.service 2>/dev/null || true
     systemctl disable openvpn-server@server.service 2>/dev/null || true
-    rm -rf /etc/openvpn /var/log/openvpn* /etc/sysctl.d/30-openvpn-forward.conf
+    
+    # Stop & Remove Interim Timer
+    systemctl stop openvpn-radius-interim.timer 2>/dev/null || true
+    systemctl disable openvpn-radius-interim.timer 2>/dev/null || true
+    rm -f /etc/systemd/system/openvpn-radius-interim.*
+    
+    rm -rf /etc/openvpn /var/log/openvpn* /etc/sysctl.d/30-openvpn-forward.conf /var/run/ovpn-radius
     sysctl --system >/dev/null 2>&1 || true
     
     if [[ -f /var/log/openvpn-installed-files.txt ]]; then
@@ -45,11 +51,7 @@ if [[ "$1" == "uninstall" ]]; then
     fi
     
     if command -v ufw >/dev/null 2>&1 && ufw status | grep -q 'Status: active'; then
-        for p in udp tcp; do
-            ufw delete allow 1194/$p 2>/dev/null || true
-            ufw delete allow 1812/$p 2>/dev/null || true
-            ufw delete allow 1813/$p 2>/dev/null || true
-        done
+        for p in udp tcp; do ufw delete allow 1194/$p 2>/dev/null || true; ufw delete allow 1812/$p 2>/dev/null || true; ufw delete allow 1813/$p 2>/dev/null || true; done
     fi
     echo "Complete deletion was performed."
     exit 0
@@ -75,6 +77,7 @@ if command -v openvpn >/dev/null || [[ -d /etc/openvpn ]] || systemctl list-unit
         print_success "Removing existing version safely..."
         systemctl stop openvpn-server@server.service >/dev/null 2>&1 || true
         systemctl disable openvpn-server@server.service >/dev/null 2>&1 || true
+        systemctl stop openvpn-radius-interim.timer >/dev/null 2>&1 || true
         
         timeout=10
         while pgrep -x openvpn >/dev/null && [ "$timeout" -gt 0 ]; do sleep 1; ((timeout--)); done
@@ -141,10 +144,10 @@ if [[ "$OS" = 'debian' ]]; then
     export DEBIAN_FRONTEND=noninteractive
     echo iptables-persistent iptables-persistent/autosave_v4 boolean true | debconf-set-selections
     echo iptables-persistent iptables-persistent/autosave_v6 boolean true | debconf-set-selections
-    apt-get install -yq easy-rsa iptables-persistent wget lsb-release freeradius-utils liblzo2-2 curl >/dev/null
+    apt-get install -yq easy-rsa iptables-persistent wget lsb-release freeradius-utils liblzo2-2 curl gawk >/dev/null
 else
     yum install -y epel-release >/dev/null
-    yum install -y easy-rsa iptables-services wget freeradius-utils lzo curl >/dev/null
+    yum install -y easy-rsa iptables-services wget freeradius-utils lzo curl gawk >/dev/null
 fi
 print_success "Dependencies installed."
 
@@ -169,7 +172,6 @@ EASYRSA_CRL_DAYS=3650 ./easyrsa --batch gen-crl >/dev/null
 cp pki/ca.crt pki/private/server.key pki/issued/server.crt pki/dh.pem pki/crl.pem /etc/openvpn/server/
 chown nobody:"$GROUPNAME" /etc/openvpn/server/crl.pem
 
-# Generate tls-auth key securely (Restored for backward compatibility)
 /usr/local/sbin/openvpn --genkey secret /etc/openvpn/server/ta.key
 print_success "Certificates and tls-auth key generated."
 
@@ -231,6 +233,7 @@ group $GROUPNAME
 persist-key
 persist-tun
 status /var/log/openvpn/openvpn-status.log
+status-version 2
 log-append /var/log/openvpn/openvpn.log
 verb 3
 crl-verify /etc/openvpn/server/crl.pem
@@ -252,6 +255,29 @@ case $DNS in
     3) echo 'push "dhcp-option DNS 1.1.1.1"' >> /etc/openvpn/server/server.conf; echo 'push "dhcp-option DNS 1.0.0.1"' >> /etc/openvpn/server/server.conf ;;
     4) echo 'push "dhcp-option DNS 208.67.222.222"' >> /etc/openvpn/server/server.conf; echo 'push "dhcp-option DNS 208.67.220.220"' >> /etc/openvpn/server/server.conf ;;
 esac
+
+# --- RADIUS Interim Updates Timer ---
+print_header "Setting up RADIUS Interim Updates"
+cat > /etc/systemd/system/openvpn-radius-interim.service <<EOF
+[Unit]
+Description=OpenVPN RADIUS Interim Updates
+[Service]
+Type=oneshot
+ExecStart=/etc/openvpn/plugin/ovpn-radius.sh interim
+EOF
+
+cat > /etc/systemd/system/openvpn-radius-interim.timer <<EOF
+[Unit]
+Description=Run OpenVPN RADIUS Interim Updates every 3 minutes
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=3min
+[Install]
+WantedBy=timers.target
+EOF
+systemctl daemon-reload
+systemctl enable --now openvpn-radius-interim.timer
+print_success "Interim updates (Live IBSng traffic) enabled."
 
 # --- Firewall & Sysctl (BBR & Dual-Stack IPv6) ---
 print_header "Configuring Firewall, BBR & Dual-Stack IPv6"
