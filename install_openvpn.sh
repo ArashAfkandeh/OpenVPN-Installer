@@ -158,12 +158,12 @@ print_header "Setting up PKI (tls-crypt enabled)"
 mkdir -p /etc/openvpn/server/easy-rsa
 cp -r /usr/share/easy-rsa/* /etc/openvpn/server/easy-rsa/
 cd /etc/openvpn/server/easy-rsa/
-./easyrsa init-pki >/dev/null
+./easyrsa --batch init-pki >/dev/null
 ./easyrsa --batch build-ca nopass >/dev/null
 ./easyrsa --batch gen-dh >/dev/null
-EASYRSA_CERT_EXPIRE=3650 ./easyrsa build-server-full server nopass >/dev/null 2>&1
-EASYRSA_CERT_EXPIRE=3650 ./easyrsa build-client-full "$CLIENT" nopass >/dev/null 2>&1
-EASYRSA_CRL_DAYS=3650 ./easyrsa gen-crl >/dev/null
+EASYRSA_CERT_EXPIRE=3650 ./easyrsa --batch build-server-full server nopass >/dev/null 2>&1
+EASYRSA_CERT_EXPIRE=3650 ./easyrsa --batch build-client-full "$CLIENT" nopass >/dev/null 2>&1
+EASYRSA_CRL_DAYS=3650 ./easyrsa --batch gen-crl >/dev/null
 
 cp pki/ca.crt pki/private/server.key pki/issued/server.crt pki/dh.pem pki/crl.pem /etc/openvpn/server/
 chown nobody:"$GROUPNAME" /etc/openvpn/server/crl.pem
@@ -267,9 +267,9 @@ if command -v ufw >/dev/null 2>&1 && ufw status | grep -q 'Status: active'; then
     ufw reload >/dev/null 2>&1 || true
 elif command -v nft >/dev/null 2>&1 && systemctl is-active nftables >/dev/null 2>&1; then
     nft add rule inet openvpn forward ip saddr 10.8.0.0/24 accept || true
-    nft add rule inet openvpn postrouting ip saddr 10.8.0.0/24 oif "$NIC" masquerade || true
+    nft add rule inet openvpn postrouting ip saddr 10.8.0.0/24 oif "$OUTGOING_IFACE" masquerade || true
     nft add rule inet openvpn forward ip6 saddr fd00:10:8::/112 accept || true
-    nft add rule inet openvpn postrouting ip6 saddr fd00:10:8::/112 oif "$NIC" masquerade || true
+    nft add rule inet openvpn postrouting ip6 saddr fd00:10:8::/112 oif "$OUTGOING_IFACE" masquerade || true
 else
     iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -o "$OUTGOING_IFACE" -j MASQUERADE
     iptables -A INPUT -p "$PROTOCOL" --dport "$PORT" -j ACCEPT
@@ -289,7 +289,6 @@ systemctl enable --now openvpn-server@server.service >/dev/null
 if curl -sSL "$PANEL_URL" -o /usr/local/bin/ov-p; then chmod +x /usr/local/bin/ov-p; print_success "Management panel installed (ov-p)."; else print_error "Failed to download panel."; fi
 
 # --- Client Config ---
-cp /etc/openvpn/server/client-common.txt "/root/$CLIENT.ovpn"
 {
     echo "client"
     echo "dev tun"
@@ -310,8 +309,8 @@ cp /etc/openvpn/server/client-common.txt "/root/$CLIENT.ovpn"
     echo "verb 3"
     echo "auth-user-pass"
     echo "<ca>"; cat /etc/openvpn/server/ca.crt; echo "</ca>"
-    echo "<cert>"; cat /etc/openvpn/server/issued/$CLIENT.crt; echo "</cert>"
-    echo "<key>"; cat /etc/openvpn/server/private/$CLIENT.key; echo "</key>"
+    echo "<cert>"; cat /etc/openvpn/server/easy-rsa/pki/issued/$CLIENT.crt; echo "</cert>"
+    echo "<key>"; cat /etc/openvpn/server/easy-rsa/pki/private/$CLIENT.key; echo "</key>"
     echo "<tls-crypt>"; cat /etc/openvpn/server/tc.key; echo "</tls-crypt>"
 } > "/root/$CLIENT.ovpn"
 
