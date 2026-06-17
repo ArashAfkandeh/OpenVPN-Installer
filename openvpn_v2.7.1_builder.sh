@@ -1,133 +1,158 @@
 #!/bin/bash
 
-# ======================================================================================================= #
-# OpenVPN v2.7.1 Builder Script for Ubuntu 22.04                                                         #
-#                                                                                                         #
-# This script compiles the latest stable release of the OpenVPN Community Edition                         #
-# (version 2.7.1 as of April 2 2025【345961234927453†L160-L164】【129982999918125†L200-L205】) from source.  #
-# It does **not** install OpenVPN on the host system.                                                     #
-# Instead, it produces a self‑contained tar.gz archive containing the compiled                            #
-# binaries, libraries, documentation and systemd service files.                                           #
-#                                                                                                         #
-# You can transfer the resulting archive to other compatible servers and extract it                       #
-# at the root directory (`/`) to deploy OpenVPN without recompiling.                                      #
-#                                                                                                         #
-# Usage: Run this script as root (e.g. via sudo) on an Ubuntu 22.04 machine.                              #
-#                                                                                                         #
-# The script installs all necessary build dependencies, downloads the OpenVPN                             #
-# tarball from the official community download location (or GitHub as a fallback),                        #
-# compiles it with systemd support enabled, and then packages the output into a                           #
-# relocatable archive.                                                                                    #
-#                                                                                                         #
-# Sources: The OpenVPN stable release table notes that version 2.7.1, released                           #
-# 2 April 2025, is the latest stable version【345961234927453†L160-L164】. GitHub labels this release       #
-# as “Latest” on the project’s releases page【129982999918125†L200-L205】. A FileHorse download page also   #
-# lists the corresponding source tarball name as `openvpn-2.7.1.tar.gz`【318479869308710†L80-L87】.        #
-# ======================================================================================================= #
+# ==================================================================================== #
+# Ocserv v1.5.0 Builder Script for Ubuntu 22.04                                        #
+#                                                                                      #
+# This script compiles ocserv from source but does NOT install it on the host system.  #
+# Its sole purpose is to produce a self-contained tar.gz package containing all        #
+# compiled artifacts (binaries, libraries, man pages, systemd service file, etc.).     #
+#                                                                                      #
+# This package can then be transferred to other compatible servers and extracted       #
+# at the root directory ('/') to deploy ocserv without needing to recompile.           #
+#                                                                                      #
+# Usage: Run this script as root or via sudo.                                          #
+# ==================================================================================== #
 
 set -euo pipefail
 
-# Ensure the script is executed as root.
 if [[ $(id -u) -ne 0 ]]; then
   echo "Please run this script as root or using sudo." >&2
   exit 1
 fi
 
+# --- STEP 1: Install Build Dependencies ---
 echo "Updating package lists and installing build dependencies..."
 apt-get update
 apt-get install -y \
-  build-essential git pkg-config autoconf automake libtool \
-  libssl-dev liblz4-dev liblzo2-dev libpam0g-dev libpkcs11-helper1-dev \
-  libcap-ng-dev libsystemd-dev libnl-genl-3-dev libnl-route-3-dev \
-  libreadline-dev iproute2 resolvconf python3-docutils
+  build-essential git pkg-config meson ninja-build \
+  libgnutls28-dev libev-dev liblz4-dev libseccomp-dev \
+  libreadline-dev libnl-route-3-dev libkrb5-dev libradcli-dev \
+  libpam0g-dev libpam-radius-auth libcurl4-gnutls-dev libcjose-dev \
+  libjansson-dev libprotobuf-c-dev libtalloc-dev \
+  libhttp-parser-dev protobuf-c-compiler gperf \
+  gawk gnutls-bin iproute2 yajl-tools tcpdump ipcalc
 
-# Create a working directory under /usr/local/src
+# --- STEP 2: Download and Prepare Source Code ---
 echo "Creating a working directory in /usr/local/src..."
 mkdir -p /usr/local/src
 cd /usr/local/src
 
-# Define the version and tarball name. 2.7.1 is the latest stable OpenVPN release
-# (released on 2 April 2025)【345961234927453†L160-L164】【129982999918125†L200-L205】.
-VERSION="2.7.1"
-TARBALL="openvpn-${VERSION}.tar.gz"
+TARBALL="ocserv-1.5.0.tar.xz"
+TARBALL_URL="https://www.infradead.org/ocserv/download/${TARBALL}"
 
-# Download the source tarball if it does not already exist.
-if [[ ! -f "$TARBALL" ]]; then
-  echo "Downloading OpenVPN source ${VERSION}..."
-  # Primary download location (OpenVPN community site). If that fails due to
-  # connectivity restrictions, fall back to the mirror hosted on GitHub.
-  wget -O "$TARBALL" "https://swupdate.openvpn.org/community/releases/${TARBALL}" \
-    || wget -O "$TARBALL" "https://swupdate.openvpn.net/community/releases/${TARBALL}" \
-    || wget -O "$TARBALL" "https://github.com/OpenVPN/openvpn/archive/refs/tags/v${VERSION}.tar.gz"
-fi
-
-# Remove any existing source tree to ensure a clean build
-rm -rf "openvpn-${VERSION}" || true
-
-echo "Extracting source code..."
-tar -xf "$TARBALL"
-
-# GitHub archives may unpack to a directory named "openvpn-${VERSION#v}".  If the
-# expected directory does not exist but a similarly named one does, rename it.
-if [[ ! -d "openvpn-${VERSION}" ]]; then
-  if [[ -d "openvpn-${VERSION#v}" ]]; then
-    mv "openvpn-${VERSION#v}" "openvpn-${VERSION}"
+if [[ -f "$TARBALL" ]]; then
+  echo "Verifying existing tarball..."
+  if ! tar -tf "$TARBALL" > /dev/null 2>&1; then
+    echo "Tarball is corrupt. Re-downloading..."
+    rm -f "$TARBALL"
   fi
 fi
 
-cd "openvpn-${VERSION}"
+if [[ ! -f "$TARBALL" ]]; then
+  echo "Downloading ocserv 1.5.0 source tarball..."
+  wget -O "$TARBALL" "$TARBALL_URL"
+fi
 
-# Generate the configure script.  Some source tarballs come with a pre‑built
-# configure script; however, running autoreconf ensures all aclocal/libtool
-# artifacts are up to date.
-echo "Generating the configure script..."
-autoreconf -i -v -f
+echo "Detecting source directory inside tarball..."
+set +o pipefail
+SRC_DIR=$(tar -tf "$TARBALL" 2>/dev/null | head -1 | cut -d/ -f1)
+set -o pipefail
 
-echo "Configuring the build (enabling systemd and async push support)..."
-./configure --enable-systemd --enable-async-push --enable-iproute2
+if [[ -z "$SRC_DIR" ]]; then
+  echo "ERROR: Could not determine source directory from tarball." >&2
+  rm -f "$TARBALL"
+  exit 1
+fi
+echo "Source directory: ${SRC_DIR}"
 
-echo "Building OpenVPN using all available CPU cores..."
-make -j"$(nproc)"
+echo "Extracting source code..."
+rm -rf "$SRC_DIR"
+tar -xf "$TARBALL"
+cd "$SRC_DIR"
 
-# Package the compiled artifacts.  Using DESTDIR avoids installing into the
-# running system; everything goes into a temporary staging directory.
-echo "Packaging all compiled files into a tar.gz archive..."
-PKG_STAGE_DIR="/tmp/openvpn-package"
+# --- STEP 3: Compile ---
+echo "--- STEP 3: Compile the Software (Meson) ---"
+BUILD_DIR="builddir"
+rm -rf "$BUILD_DIR"
+
+echo "Configuring with Meson..."
+meson setup "$BUILD_DIR" --prefix=/usr/local --buildtype=release
+
+echo "Building..."
+ninja -C "$BUILD_DIR" -j"$(nproc)"
+
+# --- STEP 4: Package with Custom Structure ---
+echo "Packaging all compiled files into a tar.gz archive with custom structure..."
+PKG_STAGE_DIR="/tmp/ocserv-package"
 rm -rf "$PKG_STAGE_DIR"
 mkdir -p "$PKG_STAGE_DIR"
 
-make install DESTDIR="$PKG_STAGE_DIR"
+# Install normally first
+DESTDIR="$PKG_STAGE_DIR" ninja -C "$BUILD_DIR" install
 
-# After installation, the systemd unit files reference /usr/sbin/openvpn.  Since
-# we install into /usr/local, adjust ExecStart paths to point to the correct
-# location.  Only attempt this if the service directory exists.
-SERVICE_DIR="$PKG_STAGE_DIR/usr/local/lib/systemd/system"
-if [[ -d "$SERVICE_DIR" ]]; then
-  echo "Patching systemd service files to use /usr/local/sbin/openvpn..."
-  # Use find and sed to replace /usr/sbin/openvpn with /usr/local/sbin/openvpn
-  while IFS= read -r -d '' service; do
-    sed -i 's#ExecStart=/usr/sbin/openvpn#ExecStart=/usr/local/sbin/openvpn#g' "$service" || true
-  done < <(find "$SERVICE_DIR" -type f -name 'openvpn*.service' -print0)
+# === فایل سرویس دقیقاً مثل v1.3.0 ===
+echo "Installing and patching systemd service file (exactly like v1.3.0)..."
+SERVICE_FILE_PATH="$PKG_STAGE_DIR/usr/local/lib/systemd/system/ocserv.service"
+mkdir -p "$(dirname "$SERVICE_FILE_PATH")"
+
+cat > "$SERVICE_FILE_PATH" << 'EOF'
+[Unit]
+Description=OpenConnect SSL VPN server
+Documentation=man:ocserv(8)
+After=network-online.target
+
+[Service]
+PrivateTmp=true
+PIDFile=/run/ocserv.pid
+Type=simple
+ExecStart=/usr/sbin/ocserv --log-stderr --foreground --pid-file /run/ocserv.pid --config /etc/ocserv/ocserv.conf
+ExecReload=/bin/kill -HUP $MAINPID
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# اعمال پچ مسیر
+sed -i 's#ExecStart=/usr/sbin/ocserv#ExecStart=/usr/local/sbin/ocserv#g' "$SERVICE_FILE_PATH"
+
+# Rename firewall script
+FW_SRC="$PKG_STAGE_DIR/usr/local/libexec/ocserv-fw-nftables"
+FW_DST="$PKG_STAGE_DIR/usr/local/libexec/ocserv-fw"
+if [[ -f "$FW_SRC" ]]; then
+  mv "$FW_SRC" "$FW_DST"
+  echo "Renamed ocserv-fw-nftables → ocserv-fw"
 fi
 
-# Create the final archive.  Using -C makes paths inside the archive relative,
-# e.g. usr/local/sbin/openvpn.
-PACKAGE_TAR="/root/openvpn-${VERSION}-local.tar.gz"
+# === ساختار درخواستی: lib → etc و در کنار usr ===
+echo "Restructuring package: moving 'lib' contents to 'etc' at root level..."
+
+# Move everything under usr/local/lib to a new top-level etc/
+if [[ -d "$PKG_STAGE_DIR/usr/local/lib" ]]; then
+  mkdir -p "$PKG_STAGE_DIR/etc"
+  mv "$PKG_STAGE_DIR/usr/local/lib"/* "$PKG_STAGE_DIR/etc/" 2>/dev/null || true
+  rmdir "$PKG_STAGE_DIR/usr/local/lib" 2>/dev/null || true
+  echo "Moved lib contents to top-level etc/"
+fi
+
+# Also ensure systemd service is in the right place inside etc
+if [[ -f "$PKG_STAGE_DIR/etc/systemd/system/ocserv.service" ]]; then
+  mkdir -p "$PKG_STAGE_DIR/etc/systemd/system"
+  # Already handled above
+  :
+fi
+
+# Final package
+PACKAGE_TAR="/root/ocserv-1.5.0-local.tar.gz"
 tar -C "$PKG_STAGE_DIR" -czf "$PACKAGE_TAR" .
 
-# Clean up the temporary staging area
 rm -rf "$PKG_STAGE_DIR"
 
-# Inform the user of success and provide installation instructions
-GREEN=$(tput setaf 2 || true)
-RESET=$(tput sgr0 || true)
-
+# --- COMPLETE ---
+GREEN=$(tput setaf 2)
+RESET=$(tput sgr0)
 echo "============================================================="
-echo "OpenVPN build and packaging complete!"
+echo "Build and packaging complete!"
 echo ""
 echo "Package created at: ${GREEN}${PACKAGE_TAR}${RESET}"
-echo ""
-echo "To deploy OpenVPN on a target system, copy the tarball to that machine and run:" 
-echo "sudo tar -C / -xzf openvpn-${VERSION}-local.tar.gz"
-echo "This will install all binaries, libraries, man pages and systemd units under /usr/local."
+echo "Structure inside tar.gz: usr/ and etc/ (side by side)"
 echo "============================================================="
