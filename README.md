@@ -1,5 +1,5 @@
 
-# نصب آسان OpenVPN با احراز هویت RADIUS و پنل تنظیمات
+# نصب آسان OpenVPN با احراز هویت RADIUS و پنل مدیریت
 
 <div dir="rtl">
 
@@ -84,7 +84,7 @@ ov-p
 
 **🎥 نمای پنل مدیریت:**
 <p align="center">
-  <img src="panel.gif" width="800">
+  <img src="ov-panel.gif" width="800">
 </p>
 
 ## 📦 ساخت پکیج نصب OpenVPN
