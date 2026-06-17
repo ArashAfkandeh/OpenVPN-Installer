@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # ======================================================================================================= #
-# OpenVPN v2.6.14 Builder Script for Ubuntu 22.04                                                         #
+# OpenVPN v2.7.1 Builder Script for Ubuntu 22.04                                                         #
 #                                                                                                         #
 # This script compiles the latest stable release of the OpenVPN Community Edition                         #
-# (version 2.6.14 as of April 2 2025【345961234927453†L160-L164】【129982999918125†L200-L205】) from source.  #
+# (version 2.7.1 as of April 2 2025【345961234927453†L160-L164】【129982999918125†L200-L205】) from source.  #
 # It does **not** install OpenVPN on the host system.                                                     #
 # Instead, it produces a self‑contained tar.gz archive containing the compiled                            #
 # binaries, libraries, documentation and systemd service files.                                           #
@@ -19,10 +19,10 @@
 # compiles it with systemd support enabled, and then packages the output into a                           #
 # relocatable archive.                                                                                    #
 #                                                                                                         #
-# Sources: The OpenVPN stable release table notes that version 2.6.14, released                           #
+# Sources: The OpenVPN stable release table notes that version 2.7.1, released                           #
 # 2 April 2025, is the latest stable version【345961234927453†L160-L164】. GitHub labels this release       #
 # as “Latest” on the project’s releases page【129982999918125†L200-L205】. A FileHorse download page also   #
-# lists the corresponding source tarball name as `openvpn-2.6.14.tar.gz`【318479869308710†L80-L87】.        #
+# lists the corresponding source tarball name as `openvpn-2.7.1.tar.gz`【318479869308710†L80-L87】.        #
 # ======================================================================================================= #
 
 set -euo pipefail
@@ -46,9 +46,9 @@ echo "Creating a working directory in /usr/local/src..."
 mkdir -p /usr/local/src
 cd /usr/local/src
 
-# Define the version and tarball name. 2.6.14 is the latest stable OpenVPN release
+# Define the version and tarball name. 2.7.1 is the latest stable OpenVPN release
 # (released on 2 April 2025)【345961234927453†L160-L164】【129982999918125†L200-L205】.
-VERSION="2.6.14"
+VERSION="2.7.1"
 TARBALL="openvpn-${VERSION}.tar.gz"
 
 # Download the source tarball if it does not already exist.
