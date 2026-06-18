@@ -110,9 +110,14 @@ if [[ -d "$SERVICE_DIR" ]]; then
   done < <(find "$SERVICE_DIR" -type f -name 'openvpn*.service' -print0)
 fi
 
+rm -rf "$PKG_STAGE_DIR/usr/local/include"
+rm -rf "$PKG_STAGE_DIR/usr/local/share"
+rm -f "$PKG_STAGE_DIR/usr/local/lib/systemd/system/openvpn-client@.service"
+rm -rf "$PKG_STAGE_DIR/usr/local/lib/openvpn/plugins"
+
 # Create the final archive.  Using -C makes paths inside the archive relative,
 # e.g. usr/local/sbin/openvpn.
-PACKAGE_TAR="/root/openvpn-${VERSION}-local.tar.gz"
+PACKAGE_TAR="/root/openvpn-${VERSION}-optimized.tar.gz"
 tar -C "$PKG_STAGE_DIR" -czf "$PACKAGE_TAR" .
 
 # Clean up the temporary staging area
